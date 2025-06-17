@@ -27,21 +27,30 @@ from count_homo.counthomo import WeightedGraph, count_homomorphisms
 def adjacency_to_weighted_graph(adj_matrix: np.ndarray) -> WeightedGraph:
     """
     Converts an adjacency matrix to a WeightedGraph object.
+    For graphons, the edge weights should be probabilities between 0 and 1.
     """
     N = adj_matrix.shape[0]
     edge_weights = {}
     
+    # Initialize all edges with weight 0
     for i in range(N):
         edge_weights[i] = {}
         for j in range(N):
-            # Include all edges, even with small weights
-            if adj_matrix[i,j] > 1e-10:  # Use small threshold instead of 0
-                edge_weights[i][j] = Decimal(str(adj_matrix[i,j]))
+            if i != j:  # No self-loops
+                edge_weights[i][j] = Decimal('0')
     
-    # Default node weights to 1.0
+    # Add edges with their weights
+    for i in range(N):
+        for j in range(N):
+            if i != j and adj_matrix[i,j] > 0:
+                # Ensure the weight is a valid probability
+                weight = max(0, min(1, adj_matrix[i,j]))
+                edge_weights[i][j] = Decimal(str(weight))
+    
+    # All nodes have weight 1.0 (this is correct for homomorphism counting)
     node_weights = {v: Decimal('1.0') for v in range(N)}
-    G = WeightedGraph(edge_weights=edge_weights, node_weights=node_weights)
-    return G
+    
+    return WeightedGraph(edge_weights=edge_weights, node_weights=node_weights)
 
 # Define H as K5,5 \ C10
 H_adj = [[0,0,0,0,0,0,1,1,1,0],
@@ -64,7 +73,7 @@ def initialize_graphon_matrix(N: int) -> np.ndarray:
     W = np.random.rand(N, N)
     # Ensure symmetry for undirected graphs
     W = (W + W.T) / 2
-    # np.fill_diagonal(W, 0)  # No self-loops
+    np.fill_diagonal(W, 0)  # No self-loops
     W = np.round(W, 2)
     return W
 
@@ -100,29 +109,39 @@ def calculate_reward(W: np.ndarray) -> Decimal:
     t_hw = calculate_homomorphism_density(H, W)
     
     # Count edges in H
-    E_H = sum(1 for v in H.edge_weights for u in H.edge_weights[v] if int(v) < int(u))
+    # E_H = sum(1 for v in H.edge_weights for u in H.edge_weights[v] if v < u)
+    edges = set()
+    for v in H.edge_weights:
+        for u in H.edge_weights[v]:
+            if v != u:
+                edges.add(tuple(sorted((v, u))))
+    E_H = len(edges) # correct
+
     reward = edge_density ** E_H - t_hw
     return reward
 
-def apply_random_graphon_action(W: np.ndarray, step_size: float = 0.05) -> np.ndarray:
+def apply_random_graphon_action(W: np.ndarray) -> np.ndarray:
     """
     Applies a random modification to the graphon matrix.
     """
     N = W.shape[0]
     W_new = W.copy()
 
-    # Choose a random entry in upper triangle
-    i = random.randint(0, N-2)
-    j = random.randint(i+1, N-1)
+    status = True
+    while status == True:
+        # Choose a random entry in upper triangle
+        i = random.randint(0, N-2)
+        j = random.randint(i+1, N-1)
 
-    # Nudge the value
-    change = random.choice([-step_size, step_size])
-    W_new[i, j] += change
-    W_new[j, i] = W_new[i, j]  # Maintain symmetry
-    
-    # Ensure values stay within [0, 1]
-    W_new[i, j] = np.clip(W_new[i, j], 0, 1)
-    W_new[j, i] = W_new[i, j]
+        # Nudge the value
+        change = random.choice([0.05,-0.05])
+        W_new[i, j] += change
+        if W_new[i, j] > 1 or W_new[i, j] < 0:
+            W_new[i, j] -= change
+            continue
+        W_new[j, i] = W_new[i, j]  # Maintain symmetry
+        status = False
+
     return W_new
 
 # --- RL Simulation Loop ---
@@ -133,6 +152,13 @@ if __name__ == "__main__":
     
     # Initialize
     current_W = initialize_graphon_matrix(GRAPHON_MATRIX_DIM)
+    # current_W = [[0.775, 0.855, 0.705, 0.865],
+    #              [0.9, 0.81, 0.615, 0.88 ],
+    #              [0.805, 0.68, 0.955, 0.76 ],
+    #              [0.715, 0.855, 0.93, 0.695]]
+    # current_W = np.array(current_W, dtype=float)
+    # current_W = adjacency_to_weighted_graph(current_W)
+    
     initial_reward = calculate_reward(current_W)
     best_W = current_W.copy()
     best_reward = initial_reward
@@ -142,9 +168,9 @@ if __name__ == "__main__":
 
     print("\nStarting graphon evolution...")
     for step in range(NUM_SIMULATION_STEPS):
-        # Apply random action
-        candidate_W = apply_random_graphon_action(current_W, step_size=0.1)
+        candidate_W = apply_random_graphon_action(current_W)
         candidate_reward = calculate_reward(candidate_W)
+        
         print(f"Step {step + 1} -- Current Reward: {candidate_reward:.6e}")
 
         # Update if better
@@ -156,7 +182,7 @@ if __name__ == "__main__":
                 best_reward = current_reward
                 best_W = current_W.copy()
                 print(f"  New Best Graphon!\n")
-                print(f"  Best graphon W:\n  {best_W}\n")
+                print(f"  Best graphon W:\n{best_W}\n")
         
         if (step + 1) % 10 == 0:  # More frequent updates since fewer steps
             print(f"Step {step + 1}: Current reward: {current_reward:.6e}")
@@ -167,18 +193,18 @@ if __name__ == "__main__":
     print(f"Final t(H,W): {calculate_homomorphism_density(H, best_W):.6e}")
     print(f"Final best graphon W:\n{best_W}")
 
-    # Check if conjecture is violated
-    edge_density = calculate_edge_density(best_W)
-    t_hw = calculate_homomorphism_density(H, best_W)
-    E_H = sum(1 for v in H.edge_weights for u in H.edge_weights[v] if int(v) < int(u))
-    rhs = edge_density ** E_H
-
-    print("\nVerification for best graphon:")
-    print(f"  t(H,W) = {t_hw:.6e}")
-    print(f"  (2m/n²)^E(H) = {rhs:.6e}")
-    if t_hw < rhs:
-        print("  Sidorenko's Conjecture: VIOLATED!")
-        print(f"  Violation margin: {(rhs - t_hw):.6e}")
-        print(f"  Violation ratio: {rhs/t_hw:.2f}x")
-    else:
-        print("  Sidorenko's Conjecture: Holds")
+    # # Check if conjecture is violated
+    # edge_density = calculate_edge_density(best_W)
+    # t_hw = calculate_homomorphism_density(H, best_W)
+    # E_H = len(edges)
+    # rhs = edge_density ** E_H
+    
+    # print("\nVerification for best graphon:")
+    # print(f"  t(H,W) = {t_hw:.6e}")
+    # print(f"  (2m/n²)^E(H) = {rhs:.6e}")
+    # if t_hw < rhs:
+    #     print("  Sidorenko's Conjecture: VIOLATED!")
+    #     print(f"  Violation margin: {(rhs - t_hw):.6e}")
+    #     print(f"  Violation ratio: {rhs/t_hw:.2f}x")
+    # else:
+    #     print("  Sidorenko's Conjecture: Holds")
