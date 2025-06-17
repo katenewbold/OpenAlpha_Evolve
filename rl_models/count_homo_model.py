@@ -19,10 +19,11 @@ H_K55_minus_C10 = graphs.CompleteBipartiteGraph(5,5)
 edges_to_remove = [(0,5),(5,0), (0,6),(6,0), (1,6),(6,1), (1,7),(7,1), (2,7),(7,2), (2,8),(8,2), (3,8),(8,3), (3,9),(9,3), (4,9),(9,4), (4,5),(5,4)]
 H_K55_minus_C10.delete_edges(edges_to_remove)
 H = H_K55_minus_C10
+H = graphs.CompleteBipartiteGraph(3,3)
 print(f"Fixed bipartite graph H: {H.graph6_string()}") # Print graph representation
 
 # Initialize a random graph G (e.g., a random graph with 5 vertices and edge probability 0.4)
-num_vertices_G = 8
+num_vertices_G = 5
 edge_probability_G = 0.5
 G = graphs.RandomGNP(num_vertices_G, edge_probability_G)
 print(f"Initial random graph G: {G.graph6_string()}") # Print graph representation
