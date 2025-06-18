@@ -38,7 +38,6 @@ def calculate_homomorphism_density(H, G):
     # The normalization factor is |V(G)| raised to the power of |V(H)|
     normalization_factor = len(G.vertices())**len(H.vertices())
     
-
     if normalization_factor == 0:
         return float('inf') # Avoid division by zero if H has no vertices (shouldn't happen with K_{2,3})
 
