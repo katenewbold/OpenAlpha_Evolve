@@ -8,13 +8,6 @@ import os
 # Set Decimal precision globally for calculations
 getcontext().prec = 50
 
-# Ensure SageMath is installed and accessible
-try:
-    from sage.all import Graph, DiGraph, graphs, show
-except ImportError:
-    print("SageMath not found. Please ensure SageMath is installed and accessible.")
-    print("Some functionality will be limited.")
-
 def create_oriented_adjacency_matrix(N: int) -> np.ndarray:
     """
     Creates an N x N adjacency matrix for an oriented graph.
@@ -103,22 +96,6 @@ def calculate_reward(G: np.ndarray) -> float:
     avg_difference = total_difference / N
     
     reward = (violations * 10) + min_difference + (avg_difference * 0.1) + violation_bonus
-    
-    second_starvation_penalty = sum(1 for v in range(N) 
-                                    if len(calculate_first_neighborhood(G, v)) > 0 and len(calculate_second_neighborhood(G, v)) == 0)
-    reward -= second_starvation_penalty * 5
-
-    unique_second_neighbors = set()
-    for v in range(N):
-        unique_second_neighbors.update(calculate_second_neighborhood(G, v))
-    reward += len(unique_second_neighbors) / N  # or scale this reward
-
-    long_chain_count = sum(1 for v in range(N)
-                           if len(calculate_second_neighborhood(G, v)) >= 2)
-    reward += long_chain_count
-
-    high_out = sum(1 for v in range(N) if G[v].sum() > N // 2)
-    reward -= high_out * 1.5
 
     return reward
 
