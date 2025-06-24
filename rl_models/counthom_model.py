@@ -48,8 +48,6 @@ H_num_edges = Decimal(get_num_edges(H_adj_matrix))
 # Create homlib.Graph for H once
 H_homlib = homlib.Graph(H_adj_matrix)
 
-print(f"Fixed graph H (K3,3) has {H_num_vertices} vertices and {H_num_edges} edges.")
-
 def initialize_random_graph(num_vertices: int, edge_probability: float) -> list[list[int]]:
     """
     Initializes a random graph G as an adjacency matrix using the G(n,p) model.
