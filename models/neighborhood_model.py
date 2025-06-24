@@ -35,7 +35,7 @@ def create_oriented_adjacency_matrix(N: int) -> np.ndarray:
     for i in range(N):
         for j in range(N):
             if i != j and G[i, j] == 0 and G[j, i] == 0:
-                if random.random() < 0.2:  # 20% chance of additional edge
+                if random.random() < 0.8:  # 80% chance of additional edge
                     G[i, j] = 1
     
     return G
