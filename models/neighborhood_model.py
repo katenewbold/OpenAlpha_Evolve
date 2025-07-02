@@ -80,7 +80,7 @@ def calculate_reward(G: np.ndarray) -> float:
     reward = violation_fraction * 100  # Heavy positive weight on violation ratio
     
     # Add smaller contributions from other factors
-    reward += min_difference  # Small positive contribution from min difference
+    reward += min_difference * 0.5  # Small positive contribution from min difference
     reward += violation_bonus  # Bonus for complete violation
     
     return reward
@@ -548,7 +548,7 @@ def apply_exploration_action(G: np.ndarray) -> np.ndarray:
 # --- Main loop ---
 if __name__ == "__main__":
     INITIAL_VERTICES = 40
-    NUM_SIMULATION_STEPS = 2000
+    NUM_SIMULATION_STEPS = 1000
     MIN_OUT_DEGREE = 7
     current_G = create_oriented_adjacency_matrix(INITIAL_VERTICES)
     initial_reward = calculate_reward(current_G)
@@ -564,7 +564,7 @@ if __name__ == "__main__":
 
     # Simple thresholds for adding a vertex
     ADD_VERTEX_STUCK_STEPS = 100
-    ADD_VERTEX_MIN_STEPS = 200
+    ADD_VERTEX_MIN_STEPS = 100
 
     for step in range(NUM_SIMULATION_STEPS):
         action_choice = random.random()
