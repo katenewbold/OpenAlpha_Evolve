@@ -2,7 +2,6 @@
 import numpy as np
 import random
 
-# Global constants
 MIN_OUT_DEGREE = 7
 
 def create_oriented_adjacency_matrix(N: int) -> np.ndarray:
@@ -13,7 +12,7 @@ def create_oriented_adjacency_matrix(N: int) -> np.ndarray:
     """
     G = np.zeros((N, N), dtype=int)
     
-    # First, ensure each vertex has at least min_out_degree outgoing edges
+    # Ensure each vertex has at least min_out_degree outgoing edges
     for i in range(N):
         # Find valid targets for vertex i
         valid_targets = [j for j in range(N) if j != i and G[j, i] == 0]
@@ -22,11 +21,11 @@ def create_oriented_adjacency_matrix(N: int) -> np.ndarray:
         for target in targets:
             G[i, target] = 1
     
-    # Add additional random edges (no self-loops, no 2-cycles)
+    # Add additional random edges
     for i in range(N):
         for j in range(N):
             if i != j and G[i, j] == 0 and G[j, i] == 0:
-                if random.random() < 0.75:
+                if random.random() < 0.8:
                     G[i, j] = 1
     
     return G
@@ -46,11 +45,8 @@ def calculate_second_neighborhood(G: np.ndarray, vertex: int) -> set:
     first_neighbors = calculate_first_neighborhood(G, vertex)
     second_neighbors = set()
     
-    # For each first neighbor, find its out-neighbors
     for neighbor in first_neighbors:
-        # Get out-neighbors of the neighbor
         neighbor_neighbors = set(np.where(G[neighbor] == 1)[0])
-        # Add vertices that are not the original vertex or its first neighbors
         second_neighbors.update(neighbor_neighbors - first_neighbors - {vertex})
         
     return second_neighbors
@@ -74,13 +70,13 @@ def calculate_reward(G: np.ndarray) -> float:
         if difference > 0:
             violations += 1
     violation_fraction = violations / N if N > 0 else 0
-    violation_bonus = 10000 if violations == N else 0  # Bonus for complete violation
+    violation_bonus = 1000 if violations == N else 0  # Bonus for complete violation
     
     # Make violation ratio the primary driver with heavy positive reward
     reward = violation_fraction * 100  # Heavy positive weight on violation ratio
     
-    # Add smaller contributions from other factors
-    reward += min_difference * 0.5  # Small positive contribution from min difference
+    # Add smaller contributions for other factors
+    reward += min_difference * 0.5  # Small contribution for min difference
     reward += violation_bonus  # Bonus for complete violation
     
     return reward
@@ -96,7 +92,7 @@ def is_valid_oriented_graph(G: np.ndarray) -> bool:
     if np.any(np.diag(G) != 0):
         return False
     
-    # Check for 2-cycles (if G[i,j] = 1, then G[j,i] should be 0)
+    # Check for 2-cycles
     for i in range(N):
         for j in range(N):
             if i != j and G[i,j] == 1 and G[j,i] == 1:
@@ -448,15 +444,14 @@ def calculate_violation_stats(G: np.ndarray) -> tuple:
 def apply_exploration_action(G: np.ndarray) -> np.ndarray:
     """
     Applies exploration actions when the search is stuck.
-    Makes more aggressive changes to escape local optima.
     """
     N = G.shape[0]
     current_reward = calculate_reward(G)
     
-    # Strategy 1: Try multiple edge changes at once
-    for _ in range(15):  # Increased from 10
+    # Try multiple edge changes at once
+    for _ in range(15): 
         G_test = G.copy()
-        num_changes = random.randint(3, 8)  # Increased range
+        num_changes = random.randint(3, 8) 
         
         for _ in range(num_changes):
             i = random.randint(0, N-1)
@@ -471,17 +466,17 @@ def apply_exploration_action(G: np.ndarray) -> np.ndarray:
         G_test = fix_low_outdegree(G_test)
         if is_valid_oriented_graph(G_test):
             test_reward = calculate_reward(G_test)
-            if test_reward > current_reward - 10:  # Allow larger decreases for exploration
+            if test_reward > current_reward - 10:  
                 return G_test
     
-    # Strategy 2: Try removing edges from vertices with high out-degree
-    for _ in range(30):  # Increased from 20
+    # Try removing edges from vertices with high out-degree
+    for _ in range(30):
         G_test = G.copy()
         # Find vertices with high out-degree
         high_out_degree = []
         for v in range(N):
             out_deg = np.sum(G_test[v, :])
-            if out_deg > MIN_OUT_DEGREE + 1:  # Reduced threshold
+            if out_deg > MIN_OUT_DEGREE + 1: 
                 high_out_degree.append((v, out_deg))
         
         if high_out_degree:
@@ -500,14 +495,14 @@ def apply_exploration_action(G: np.ndarray) -> np.ndarray:
                     if test_reward > current_reward - 5:  # Allow larger decreases
                         return G_test
     
-    # Strategy 3: Try adding edges to vertices with low out-degree
-    for _ in range(30):  # Increased from 20
+    # Try adding edges to vertices with low out-degree
+    for _ in range(30): 
         G_test = G.copy()
         # Find vertices with low out-degree
         low_out_degree = []
         for v in range(N):
             out_deg = np.sum(G_test[v, :])
-            if out_deg <= MIN_OUT_DEGREE + 2:  # Increased threshold
+            if out_deg <= MIN_OUT_DEGREE + 2:  
                 low_out_degree.append((v, out_deg))
         
         if low_out_degree:
@@ -521,12 +516,12 @@ def apply_exploration_action(G: np.ndarray) -> np.ndarray:
                     G_test[vertex, target] = 1
                     if is_valid_oriented_graph(G_test):
                         test_reward = calculate_reward(G_test)
-                        if test_reward > current_reward - 3:  # Allow larger decreases
+                        if test_reward > current_reward - 3: 
                             return G_test
                     break
     
-    # Strategy 4: Try completely random modifications with higher tolerance
-    for _ in range(50):  # Try many random modifications
+    # Try completely random modifications with higher tolerance
+    for _ in range(50):
         G_test = G.copy()
         i = random.randint(0, N-1)
         j = random.randint(0, N-1)
@@ -539,7 +534,7 @@ def apply_exploration_action(G: np.ndarray) -> np.ndarray:
         G_test = fix_low_outdegree(G_test)
         if is_valid_oriented_graph(G_test):
             test_reward = calculate_reward(G_test)
-            if test_reward > current_reward - 8:  # Allow even larger decreases
+            if test_reward > current_reward - 8:  
                 return G_test
     
     # If all exploration strategies fail, return a random action
@@ -547,7 +542,7 @@ def apply_exploration_action(G: np.ndarray) -> np.ndarray:
 
 # --- Main loop ---
 if __name__ == "__main__":
-    INITIAL_VERTICES = 40
+    INITIAL_VERTICES = 25
     NUM_SIMULATION_STEPS = 1000
     MIN_OUT_DEGREE = 7
     current_G = create_oriented_adjacency_matrix(INITIAL_VERTICES)
@@ -563,11 +558,10 @@ if __name__ == "__main__":
     best_reward_at_current_size = initial_reward
 
     # Simple thresholds for adding a vertex
-    ADD_VERTEX_STUCK_STEPS = 100
-    ADD_VERTEX_MIN_STEPS = 100
+    ADD_VERTEX_STUCK_STEPS = 10000
+    ADD_VERTEX_MIN_STEPS = 10000
 
     for step in range(NUM_SIMULATION_STEPS):
-        action_choice = random.random()
 
         # Add a vertex only if thoroughly stuck
         if (
@@ -589,8 +583,6 @@ if __name__ == "__main__":
                 continue
         elif steps_without_improvement >= 100:
             candidate_G = apply_exploration_action(current_G)
-        elif action_choice < 0.7:
-            candidate_G = apply_smart_action(current_G)
         else:
             candidate_G = apply_random_action(current_G)
 
@@ -609,7 +601,6 @@ if __name__ == "__main__":
             if current_reward > best_reward:
                 best_reward = current_reward
                 best_G = current_G.copy()
-                #print(f"\nStep {step + 1}: New best! Reward: {best_reward:.2f}, Vertices: {best_G.shape[0]}")
 
             if current_reward > best_reward_at_current_size:
                 best_reward_at_current_size = current_reward
@@ -639,3 +630,7 @@ if __name__ == "__main__":
     else:
         print("\nSecond Neighborhood Conjecture: Holds")
         print("At least one vertex has |N₁(v)| ≤ |N₂(v)|")
+
+    # Save file with best adjacency matrix
+    np.savetxt('best_graph_matrix.txt', best_G, fmt='%d')
+    print("Adjacency matrix saved to best_graph_matrix.txt")
